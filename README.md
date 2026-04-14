@@ -1,5 +1,9 @@
 # Выполненное тестовое задание
 
+## Краткий видео-обзор:  
+
+https://rutube.ru/video/private/7f971238ca1aff8608d6ce1881e9cddc/?p=bycatzgFcOK-PGhwXDcX_w  
+
 ## Быстрый запуск
 
 Склонируйте проект и запустите при помощи Makefile:
