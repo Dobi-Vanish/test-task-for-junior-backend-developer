@@ -54,9 +54,6 @@ func newTaskDTO(task *taskdomain.Task) taskDTO {
 	}
 	if task.Recurrence != nil {
 		dto.Recurrence = newRecurrenceDTO(task.Recurrence)
-		log.Printf("[DEBUG] newTaskDTO: task %d has recurrence, dto.Recurrence = %+v", task.ID, dto.Recurrence)
-	} else {
-		log.Printf("[DEBUG] newTaskDTO: task %d has NO recurrence", task.ID)
 	}
 	return dto
 }
