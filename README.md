@@ -6,10 +6,14 @@ https://rutube.ru/video/private/7f971238ca1aff8608d6ce1881e9cddc/?p=bycatzgFcOK-
 
 ## Быстрый запуск
 
-Склонируйте проект и запустите при помощи Makefile:
+Склонируйте проект, смените ветку и запустите при помощи Makefile:
 
 `
 git clone https://github.com/Dobi-Vanish/test-task-for-junior-backend-developer
+`
+
+`
+git checkout vaporeof
 `
 
 `
