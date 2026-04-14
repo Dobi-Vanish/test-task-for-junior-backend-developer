@@ -186,7 +186,6 @@ func scanTask(scanner taskScanner) (*taskdomain.Task, error) {
 		&task.CreatedAt,
 		&task.UpdatedAt,
 	)
-	log.Printf("[DEBUG] scanTask: ID=%d, recurrenceID=%v", task.ID, recurrenceID)
 	if err != nil {
 		return nil, err
 	}
@@ -261,17 +260,14 @@ func (r *Repository) GetRecurrenceByTaskID(ctx context.Context, taskID int64) (*
 		FROM task_recurrences
 		WHERE task_id = $1
 	`
-	log.Printf("[DEBUG] GetRecurrenceByTaskID: querying task_id=%d", taskID)
 	row := r.pool.QueryRow(ctx, query, taskID)
 	rec, err := scanRecurrence(row)
 	if err != nil {
-		log.Printf("[DEBUG] GetRecurrenceByTaskID: error scanning: %v", err)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	log.Printf("[DEBUG] GetRecurrenceByTaskID: success, rec=%+v", rec)
 	return rec, nil
 }
 
@@ -294,19 +290,15 @@ func (r *Repository) List(ctx context.Context) ([]taskdomain.Task, error) {
 			return nil, err
 		}
 		if task.RecurrenceID != nil && *task.RecurrenceID > 0 {
-			log.Printf("[DEBUG] List: loading recurrence for task %d, recurrenceID=%d", task.ID, *task.RecurrenceID)
 			rec, err := r.GetRecurrenceByID(ctx, *task.RecurrenceID)
 			if err != nil {
-				log.Printf("[DEBUG] List: error loading recurrence for task %d: %v", task.ID, err)
 				if !errors.Is(err, pgx.ErrNoRows) {
 					return nil, err
 				}
 			}
 			if rec != nil {
 				task.Recurrence = rec
-				log.Printf("[DEBUG] List: loaded recurrence for task %d: %+v", task.ID, rec)
 			} else {
-				log.Printf("[DEBUG] List: recurrence not found for task %d", task.ID)
 			}
 		}
 		tasks = append(tasks, *task)
