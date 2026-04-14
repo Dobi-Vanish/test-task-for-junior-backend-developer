@@ -43,7 +43,6 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 		ScheduledAt: req.ScheduledAt,
 		Recurrence:  recInput,
 	})
-	log.Printf("[DEBUG] Created task ID=%d, RecurrenceID=%v", created.ID, created.RecurrenceID)
 	if err != nil {
 		writeUsecaseError(w, err)
 		return
