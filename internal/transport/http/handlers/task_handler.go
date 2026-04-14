@@ -3,8 +3,11 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gorilla/mux"
 
@@ -27,16 +30,24 @@ func (h *TaskHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	recInput, err := toRecurrenceInput(req.Recurrence)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err)
+		return
+	}
+
 	created, err := h.usecase.Create(r.Context(), taskusecase.CreateInput{
 		Title:       req.Title,
 		Description: req.Description,
 		Status:      req.Status,
+		ScheduledAt: req.ScheduledAt,
+		Recurrence:  recInput,
 	})
+	log.Printf("[DEBUG] Created task ID=%d, RecurrenceID=%v", created.ID, created.RecurrenceID)
 	if err != nil {
 		writeUsecaseError(w, err)
 		return
 	}
-
 	writeJSON(w, http.StatusCreated, newTaskDTO(created))
 }
 
@@ -73,13 +84,35 @@ func (h *TaskHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Title:       req.Title,
 		Description: req.Description,
 		Status:      req.Status,
+		ScheduledAt: req.ScheduledAt,
 	})
 	if err != nil {
 		writeUsecaseError(w, err)
 		return
 	}
-
 	writeJSON(w, http.StatusOK, newTaskDTO(updated))
+}
+
+func (h *TaskHandler) GenerateUpcoming(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		DaysAhead int `json:"days_ahead"`
+	}
+	daysAhead := 7
+	if r.ContentLength > 0 {
+		if err := decodeJSON(r, &req); err != nil {
+			writeError(w, http.StatusBadRequest, err)
+			return
+		}
+		if req.DaysAhead > 0 {
+			daysAhead = req.DaysAhead
+		}
+	}
+
+	if err := h.usecase.GenerateUpcomingTasks(r.Context(), daysAhead); err != nil {
+		writeError(w, http.StatusInternalServerError, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (h *TaskHandler) Delete(w http.ResponseWriter, r *http.Request) {
@@ -115,16 +148,16 @@ func (h *TaskHandler) List(w http.ResponseWriter, r *http.Request) {
 func getIDFromRequest(r *http.Request) (int64, error) {
 	rawID := mux.Vars(r)["id"]
 	if rawID == "" {
-		return 0, errors.New("missing task id")
+		return 0, taskdomain.MissingID
 	}
 
 	id, err := strconv.ParseInt(rawID, 10, 64)
 	if err != nil {
-		return 0, errors.New("invalid task id")
+		return 0, taskdomain.InvalidID
 	}
 
 	if id <= 0 {
-		return 0, errors.New("invalid task id")
+		return 0, taskdomain.InvalidID
 	}
 
 	return id, nil
@@ -163,4 +196,31 @@ func writeJSON(w http.ResponseWriter, status int, payload any) {
 	w.WriteHeader(status)
 
 	_ = json.NewEncoder(w).Encode(payload)
+}
+
+func toRecurrenceInput(dto *recurrenceDTO) (*taskusecase.RecurrenceInput, error) {
+	if dto == nil {
+		return nil, nil
+	}
+	startDate, err := time.Parse("2006-01-02", dto.StartDate)
+	if err != nil {
+		return nil, fmt.Errorf("invalid start_date: %w", err)
+	}
+	var endDate *time.Time
+	if dto.EndDate != nil {
+		ed, err := time.Parse("2006-01-02", *dto.EndDate)
+		if err != nil {
+			return nil, fmt.Errorf("invalid end_date: %w", err)
+		}
+		endDate = &ed
+	}
+	return &taskusecase.RecurrenceInput{
+		Type:          taskdomain.RecurrenceType(dto.Type),
+		IntervalDays:  dto.IntervalDays,
+		MonthDay:      dto.MonthDay,
+		SpecificDates: dto.SpecificDates,
+		OddEven:       dto.OddEven,
+		StartDate:     startDate,
+		EndDate:       endDate,
+	}, nil
 }

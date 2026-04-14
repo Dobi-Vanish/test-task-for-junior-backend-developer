@@ -3,7 +3,7 @@
   "info": {
     "title": "Task Service API",
     "version": "1.0.0",
-    "description": "CRUD API for tasks built with clean architecture."
+    "description": "CRUD API for tasks with recurrence support"
   },
   "servers": [
     {
@@ -56,6 +56,30 @@
             }
           },
           "400": { "$ref": "#/components/responses/BadRequest" }
+        }
+      }
+    },
+    "/api/v1/tasks/generate": {
+      "post": {
+        "tags": ["Tasks"],
+        "summary": "Generate upcoming recurring tasks",
+        "description": "Manually triggers generation of recurring tasks for the next N days (default 7).",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "days_ahead": { "type": "integer", "minimum": 1, "default": 7 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": { "description": "Generation completed" },
+          "500": { "$ref": "#/components/responses/InternalError" }
         }
       }
     },
@@ -150,6 +174,14 @@
             "schema": { "$ref": "#/components/schemas/Error" }
           }
         }
+      },
+      "InternalError": {
+        "description": "Internal server error",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Error" }
+          }
+        }
       }
     },
     "schemas": {
@@ -159,16 +191,23 @@
         "properties": {
           "title": {
             "type": "string",
-            "example": "Prepare release"
+            "example": "Подготовить отчёт"
           },
           "description": {
             "type": "string",
-            "example": "Collect release notes and check migrations"
+            "example": "Собрать данные по пациентам за месяц"
           },
           "status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          },
+          "scheduled_at": {
             "type": "string",
-            "enum": ["new", "in_progress", "done"],
-            "example": "new"
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-04-20T10:00:00Z"
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/RecurrenceInput"
           }
         }
       },
@@ -178,49 +217,148 @@
         "properties": {
           "title": {
             "type": "string",
-            "example": "Prepare release"
+            "example": "Подготовить отчёт"
           },
           "description": {
             "type": "string",
-            "example": "Collect release notes and check migrations"
+            "example": "Собрать данные по пациентам за месяц"
           },
           "status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          },
+          "scheduled_at": {
             "type": "string",
-            "enum": ["new", "in_progress", "done"],
-            "example": "in_progress"
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-04-20T10:00:00Z"
           }
         }
       },
       "Task": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer", "format": "int64", "example": 1 },
-          "title": { "type": "string", "example": "Prepare release" },
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "example": 1
+          },
+          "title": {
+            "type": "string",
+            "example": "Подготовить отчёт"
+          },
           "description": {
             "type": "string",
-            "example": "Collect release notes and check migrations"
+            "example": "Собрать данные по пациентам за месяц"
           },
           "status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          },
+          "scheduled_at": {
             "type": "string",
-            "enum": ["new", "in_progress", "done"],
-            "example": "new"
+            "format": "date-time",
+            "nullable": true,
+            "example": "2026-04-20T10:00:00Z"
+          },
+          "recurrence_id": {
+            "type": "integer",
+            "format": "int64",
+            "nullable": true,
+            "example": 5
+          },
+          "recurrence": {
+            "$ref": "#/components/schemas/Recurrence",
+            "nullable": true
           },
           "created_at": {
             "type": "string",
             "format": "date-time",
-            "example": "2026-03-24T00:00:00Z"
+            "example": "2026-04-13T09:00:00Z"
           },
           "updated_at": {
             "type": "string",
             "format": "date-time",
-            "example": "2026-03-24T00:00:00Z"
+            "example": "2026-04-13T09:00:00Z"
+          }
+        }
+      },
+      "TaskStatus": {
+        "type": "string",
+        "enum": ["in_progress", "done", "cancelled", "recurring"],
+        "description": "Статус задачи"
+      },
+      "Recurrence": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer", "format": "int64" },
+          "task_id": { "type": "integer", "format": "int64" },
+          "type": { "type": "string", "enum": ["daily", "monthly", "specific_dates", "odd_even"] },
+          "interval_days": { "type": "integer", "nullable": true },
+          "month_day": { "type": "integer", "nullable": true },
+          "specific_dates": {
+            "type": "array",
+            "items": { "type": "string", "format": "date" },
+            "nullable": true
+          },
+          "odd_even": { "type": "string", "enum": ["odd", "even"], "nullable": true },
+          "start_date": { "type": "string", "format": "date" },
+          "end_date": { "type": "string", "format": "date", "nullable": true },
+          "created_at": { "type": "string", "format": "date-time" },
+          "updated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "RecurrenceInput": {
+        "type": "object",
+        "required": ["type", "start_date"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["daily", "monthly", "specific_dates", "odd_even"],
+            "description": "Тип повторения"
+          },
+          "interval_days": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Интервал в днях (для daily)"
+          },
+          "month_day": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 30,
+            "description": "Число месяца (для monthly)"
+          },
+          "specific_dates": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "Список конкретных дат (YYYY-MM-DD)"
+          },
+          "odd_even": {
+            "type": "string",
+            "enum": ["odd", "even"],
+            "description": "Чётные/нечётные дни"
+          },
+          "start_date": {
+            "type": "string",
+            "format": "date",
+            "description": "Дата начала действия повторений"
+          },
+          "end_date": {
+            "type": "string",
+            "format": "date",
+            "nullable": true,
+            "description": "Дата окончания (опционально)"
           }
         }
       },
       "Error": {
         "type": "object",
         "properties": {
-          "error": { "type": "string", "example": "task not found" }
+          "error": {
+            "type": "string",
+            "example": "task not found"
+          }
         }
       }
     }

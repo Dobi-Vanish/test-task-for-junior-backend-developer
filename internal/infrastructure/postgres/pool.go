@@ -2,14 +2,13 @@ package postgres
 
 import (
 	"context"
-	"fmt"
-
+	"example.com/taskservice/internal/domain/task"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func Open(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	if dsn == "" {
-		return nil, fmt.Errorf("database dsn is empty")
+		return nil, task.ErrDsnEmpty
 	}
 
 	cfg, err := pgxpool.ParseConfig(dsn)
