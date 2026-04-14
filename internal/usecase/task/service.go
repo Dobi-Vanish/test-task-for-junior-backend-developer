@@ -68,13 +68,11 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (*taskdomain.Ta
 			_ = s.repo.Delete(ctx, created.ID)
 			return nil, FailedToCreateRecurrence
 		}
-		log.Printf("[DEBUG] Created recurrence: rec.ID=%d, rec.TaskID=%d", rec.ID, rec.TaskID)
 		created.RecurrenceID = &rec.ID
 		created, err = s.repo.Update(ctx, created)
 		if err != nil {
 			return nil, err
 		}
-		log.Printf("[DEBUG] After update: task.ID=%d, RecurrenceID=%v", created.ID, created.RecurrenceID)
 
 		created.Recurrence = rec
 	}
