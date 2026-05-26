@@ -17,6 +17,10 @@ git checkout vaporeof
 `
 
 `
+go mod tidy
+`
+
+`
 make build
 `
 

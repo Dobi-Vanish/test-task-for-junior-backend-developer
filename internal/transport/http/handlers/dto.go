@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"log"
 	"time"
 
 	taskdomain "example.com/taskservice/internal/domain/task"
